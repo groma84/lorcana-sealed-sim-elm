@@ -28,7 +28,7 @@ type alias CharacterCard =
     , bodyText : Maybe String
     , cardNum : Int
     , classifications : Maybe String
-    , color : String
+    , color : Color
     , cost : Int
     , enchantedImage : Maybe String
     , flavorText : Maybe String
@@ -51,7 +51,7 @@ type alias ActionCard =
     { artist : String
     , bodyText : Maybe String
     , cardNum : Int
-    , color : String
+    , color : Color
     , cost : Int
     , enchantedImage : Maybe String
     , flavorText : Maybe String
@@ -71,7 +71,7 @@ type alias SongCard =
     { artist : String
     , bodyText : Maybe String
     , cardNum : Int
-    , color : String
+    , color : Color
     , cost : Int
     , enchantedImage : Maybe String
     , flavorText : Maybe String
@@ -91,7 +91,7 @@ type alias ItemCard =
     { artist : String
     , bodyText : Maybe String
     , cardNum : Int
-    , color : String
+    , color : Color
     , cost : Int
     , enchantedImage : Maybe String
     , flavorText : Maybe String
@@ -120,6 +120,7 @@ type Msg
     | GeneratePacks
 
 type Rarity = Common | Uncommon | Rare | SuperRare | Legendary
+type Color = Steel | Ruby | Amber | Sapphire | Emerald | Amethyst 
 
 decodeRarity : String -> D.Decoder Rarity
 decodeRarity rarityText =
@@ -129,8 +130,19 @@ decodeRarity rarityText =
         "Rare" -> D.succeed Rare
         "Super Rare" -> D.succeed SuperRare
         "Legendary" -> D.succeed Legendary
-        _ -> D.fail "Rarity could not be decoded"
+        _ -> D.fail ("Rarity '" ++ rarityText ++ "' could not be decoded")
 
+
+decodeColor : String -> D.Decoder Color
+decodeColor colorText =
+    case colorText of
+        "Steel" -> D.succeed Steel
+        "Ruby" -> D.succeed Ruby
+        "Amber" -> D.succeed Amber
+        "Sapphire" -> D.succeed Sapphire
+        "Emerald" -> D.succeed Emerald
+        "Amethyst" -> D.succeed Amethyst
+        _ -> D.fail ("Color '" ++ colorText ++ "' could not be decoded")
 
 
 classifyAndDecodeCard : D.Decoder Card
@@ -149,7 +161,7 @@ decodeCharacterCard =
                 (D.maybe (D.field "Body_Text" D.string))
                 (D.field "Card_Num" D.int)
                 (D.maybe (D.field "Classifications" D.string))
-                (D.field "Color" D.string)
+                (D.field "Color" D.string |> D.andThen decodeColor)
                 (D.field "Cost" D.int)
                 (D.maybe (D.field "Enchanted_Image" D.string))
 
@@ -183,7 +195,7 @@ decodeSongCard =
                 (D.field "Artist" D.string)
                 (D.maybe (D.field "Body_Text" D.string))
                 (D.field "Card_Num" D.int)
-                (D.field "Color" D.string)
+                (D.field "Color" D.string |> D.andThen decodeColor)
                 (D.field "Cost" D.int)
                 (D.maybe (D.field "Enchanted_Image" D.string))
                 (D.maybe (D.field "Flavor_Text" D.string))
@@ -214,7 +226,7 @@ decodeActionCard =
                 (D.field "Artist" D.string)
                 (D.maybe (D.field "Body_Text" D.string))
                 (D.field "Card_Num" D.int)
-                (D.field "Color" D.string)
+                (D.field "Color" D.string |> D.andThen decodeColor)
                 (D.field "Cost" D.int)
                 (D.maybe (D.field "Enchanted_Image" D.string))
                 (D.maybe (D.field "Flavor_Text" D.string))
@@ -245,7 +257,7 @@ decodeItemCard =
                 (D.field "Artist" D.string)
                 (D.maybe (D.field "Body_Text" D.string))
                 (D.field "Card_Num" D.int)
-                (D.field "Color" D.string)
+                (D.field "Color" D.string |> D.andThen decodeColor)
                 (D.field "Cost" D.int)
                 (D.maybe (D.field "Enchanted_Image" D.string))
                 (D.maybe (D.field "Flavor_Text" D.string))
@@ -349,6 +361,7 @@ prepareCardLists allCards =
 -- TODO: allCards -> prepareCardLists -> Shuffle Each List and "store" again + get three more random nums for the distributions
 -- -> use generated values into real generator function -> filter for pack set -> generate pack -> loop for packs -> store everything
 -- -> display everything
+-- 6 commons (**one of each color!**), 3 uncommons, 1 mit rare oder superrare oder legendary, 1 mit rare oder superrare oder legendary, 1 mit foil mit beliebiger rarity
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
