@@ -13,7 +13,8 @@
             "elm/random": "1.0.0",
             "elm-community/list-extra": "8.7.0",
             "elm-community/random-extra": "3.2.0",
-            "hmsk/elm-vite-plugin-helper": "1.0.1"
+            "hmsk/elm-vite-plugin-helper": "1.0.1",
+            "jjant/elm-dict": "2.0.0"
         },
         "indirect": {
             "elm/time": "1.0.0",

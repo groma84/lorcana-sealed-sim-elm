@@ -9,12 +9,16 @@ import VitePluginHelper
 import Random.List
 import List.Extra
 import Dict
+import Random
+import Random.Extra
+import AllDict
 
 
 type alias Model =
     { allCards : List Card
     , cardsSplitForPack : Maybe CardsSplitForPack
     , error : Maybe String
+    , generatedBooster : Maybe Booster
     }
 
 
@@ -22,6 +26,7 @@ initialModel =
     { allCards = []
     , cardsSplitForPack = Nothing
     , error = Nothing
+    , generatedBooster = Nothing
     }
 
 
@@ -136,6 +141,7 @@ type alias Booster =
 type Msg
     = NoOp
     | GeneratePacks
+    | BoosterGenerated Booster
 
 
 type Rarity
@@ -446,19 +452,36 @@ prepareCardLists allCards =
 generateCommon : Maybe (List Card) -> Random.Generator Card
 generateCommon possibleCommons =
     case possibleCommons of
-            Nothing -> Failed
+            Nothing -> Random.constant [Failed]
             Just cards -> 
+                case cards of
+                    [] -> Random.constant [Failed]
+                    cs -> Random.List.shuffle cs
+                
 
 generateBooster : CardsSplitForPack -> Random.Generator Booster
 generateBooster cardsSplitForPack =
     let
-        groupedCards = List.Extra.gatherWith (\l r -> (colorFromCard l) == colorFromCard r) cardsSplitForPack.commons
-        colorsAsKeys = List.map (Tuple.mapFirst colorFromCard) groupedCards
-        asDict = Dict.fromList colorsAsKeys
+        commonsGroupedByColor =
+            cardsSplitForPack.commons
+            |> List.Extra.gatherWith (\l r -> (colorFromCard l) == (colorFromCard r)) 
+            |> List.map (Tuple.mapFirst colorFromCard)
+            |> AllDict.fromList
     in
-    
-    Random.map Booster (generateCommon (Dict.get Steel asDict))
-    |> andMap (generateCommon Ruby)
+    Random.map Booster (generateCommon (AllDict.get Steel commonsGroupedByColor))
+    |> Random.Extra.andMap (generateCommon (AllDict.get Ruby commonsGroupedByColor))
+    |> Random.Extra.andMap (generateCommon (AllDict.get Amber commonsGroupedByColor))
+    |> Random.Extra.andMap (generateCommon (AllDict.get Sapphire commonsGroupedByColor))
+    |> Random.Extra.andMap (generateCommon (AllDict.get Emerald commonsGroupedByColor))
+    |> Random.Extra.andMap (generateCommon (AllDict.get Amethyst commonsGroupedByColor))
+
+    |> Random.Extra.andMap (generateCommon (AllDict.get Amethyst commonsGroupedByColor))
+    |> Random.Extra.andMap (generateCommon (AllDict.get Amethyst commonsGroupedByColor))
+    |> Random.Extra.andMap (generateCommon (AllDict.get Amethyst commonsGroupedByColor))
+    |> Random.Extra.andMap (generateCommon (AllDict.get Amethyst commonsGroupedByColor))
+    |> Random.Extra.andMap (generateCommon (AllDict.get Amethyst commonsGroupedByColor))
+    |> Random.Extra.andMap (generateCommon (AllDict.get Amethyst commonsGroupedByColor))
+
     -- Random.List.shuffle cardsSplitForPack.commons |> gatherWith Color |> head of each group |> flatMap
     -- Random.List.shuffle cardsSplitForPack.uncommons |> take 3
     -- Random.List.shuffle cardsSplitForPack.rare |> take 2
@@ -479,13 +502,18 @@ update msg model =
         NoOp ->
             ( model, Cmd.none )
 
+        -- TODO: MAYBETHING EVERYWHERE ALL AT ONCE
         GeneratePacks ->
-            ( model, Cmd.none )
+            ( model, Random.generate BoosterGenerated (generateBooster model.cardsSplitForPack))
+
+        BoosterGenerated booster ->
+            ( {model | generatedBooster = Just booster}, Cmd.none )
+
 
 
 generatePacksSelection : Model -> Html Msg
 generatePacksSelection model =
-    button [ onClick GeneratePacks ] [ text "Generate 3 TFC and 3 RotF packs" ]
+    button [ onClick GeneratePacks ] [ text "Generate some packs" ]
 
 
 view : Model -> Html Msg
