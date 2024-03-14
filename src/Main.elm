@@ -12,6 +12,7 @@ import Dict
 import Random
 import Random.Extra
 import AllDict
+import Platform.Cmd as Cmd
 
 
 type alias Model =
@@ -136,12 +137,26 @@ type alias Booster =
     , rare2: Card
     , foil: Card
     }
-    
+
+type alias MaybeBooster = 
+    { commonSteel : Maybe Card
+    , commonRuby : Maybe Card
+    , commonAmber : Maybe Card
+    , commonSapphire : Maybe Card
+    , commonEmerald : Maybe Card
+    , commonAmethyst : Maybe Card
+    , uncommon1 : Maybe Card
+    , uncommon2 : Maybe Card
+    , uncommon3 : Maybe Card
+    , rare1: Maybe Card
+    , rare2: Maybe Card
+    , foil: Maybe Card
+    }    
 
 type Msg
     = NoOp
     | GeneratePacks
-    | BoosterGenerated Booster
+    | BoosterGenerated MaybeBooster
 
 
 type Rarity
@@ -379,12 +394,14 @@ init flags =
                     { error = Just (D.errorToString e)
                     , cardsSplitForPack = Nothing 
                     , allCards = []
+                    , generatedBooster = Nothing
                     }
 
                 Ok cards ->
                     { error = Nothing
                     , cardsSplitForPack = Just (prepareCardLists cards)
                     , allCards = cards
+                    , generatedBooster = Nothing
                     }
     in
     ( newModel
@@ -418,7 +435,7 @@ colorFromCard card =
             x.color
 
         Failed ->
-            Common
+            Steel
 
 rarityFromCard : Card -> Rarity
 rarityFromCard card =
@@ -449,17 +466,14 @@ prepareCardLists allCards =
     }
 
 
-generateCommon : Maybe (List Card) -> Random.Generator Card
+generateCommon : Maybe (List Card) -> Random.Generator (Maybe Card)
 generateCommon possibleCommons =
     case possibleCommons of
-            Nothing -> Random.constant [Failed]
-            Just cards -> 
-                case cards of
-                    [] -> Random.constant [Failed]
-                    cs -> Random.List.shuffle cs
-                
+            Nothing -> Random.constant Nothing
+            Just cards -> Random.Extra.sample cards
+       
 
-generateBooster : CardsSplitForPack -> Random.Generator Booster
+generateBooster : CardsSplitForPack -> Random.Generator MaybeBooster
 generateBooster cardsSplitForPack =
     let
         commonsGroupedByColor =
@@ -467,8 +481,9 @@ generateBooster cardsSplitForPack =
             |> List.Extra.gatherWith (\l r -> (colorFromCard l) == (colorFromCard r)) 
             |> List.map (Tuple.mapFirst colorFromCard)
             |> AllDict.fromList
+        
     in
-    Random.map Booster (generateCommon (AllDict.get Steel commonsGroupedByColor))
+    Random.map MaybeBooster (generateCommon (AllDict.get Steel commonsGroupedByColor))
     |> Random.Extra.andMap (generateCommon (AllDict.get Ruby commonsGroupedByColor))
     |> Random.Extra.andMap (generateCommon (AllDict.get Amber commonsGroupedByColor))
     |> Random.Extra.andMap (generateCommon (AllDict.get Sapphire commonsGroupedByColor))
@@ -504,7 +519,10 @@ update msg model =
 
         -- TODO: MAYBETHING EVERYWHERE ALL AT ONCE
         GeneratePacks ->
-            ( model, Random.generate BoosterGenerated (generateBooster model.cardsSplitForPack))
+            ( model, 
+                Maybe.map (Random.generate BoosterGenerated (Maybe.map generateBooster model.cardsSplitForPack) 
+                |> Maybe.withDefault Cmd.none)
+            )
 
         BoosterGenerated booster ->
             ( {model | generatedBooster = Just booster}, Cmd.none )
