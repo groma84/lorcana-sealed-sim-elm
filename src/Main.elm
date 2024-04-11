@@ -11,6 +11,7 @@ import List.Extra
 import Dict
 import Random
 import Random.Extra
+import Maybe.Extra
 import AllDict
 import Platform.Cmd as Cmd
 
@@ -19,6 +20,7 @@ type alias Model =
     { allCards : List Card
     , cardsSplitForPack : Maybe CardsSplitForPack
     , error : Maybe String
+    , maybeGeneratedBooster : Maybe MaybeBooster
     , generatedBooster : Maybe Booster
     }
 
@@ -27,6 +29,7 @@ initialModel =
     { allCards = []
     , cardsSplitForPack = Nothing
     , error = Nothing
+    , maybeGeneratedBooster = Nothing
     , generatedBooster = Nothing
     }
 
@@ -156,7 +159,7 @@ type alias MaybeBooster =
 type Msg
     = NoOp
     | GeneratePacks
-    | BoosterGenerated MaybeBooster
+    | MaybeBoosterGenerated MaybeBooster
 
 
 type Rarity
@@ -394,6 +397,7 @@ init flags =
                     { error = Just (D.errorToString e)
                     , cardsSplitForPack = Nothing 
                     , allCards = []
+                    , maybeGeneratedBooster = Nothing
                     , generatedBooster = Nothing
                     }
 
@@ -401,6 +405,7 @@ init flags =
                     { error = Nothing
                     , cardsSplitForPack = Just (prepareCardLists cards)
                     , allCards = cards
+                    , maybeGeneratedBooster = Nothing
                     , generatedBooster = Nothing
                     }
     in
@@ -517,15 +522,29 @@ update msg model =
         NoOp ->
             ( model, Cmd.none )
 
-        -- TODO: MAYBETHING EVERYWHERE ALL AT ONCE
         GeneratePacks ->
-            ( model, 
-                Maybe.map (Random.generate BoosterGenerated (Maybe.map generateBooster model.cardsSplitForPack) 
-                |> Maybe.withDefault Cmd.none)
-            )
+            ( model, model.cardsSplitForPack
+                        |> Maybe.map generateBooster
+                        |> Maybe.map (Random.generate MaybeBoosterGenerated)
+                        |> Maybe.withDefault Cmd.none)
 
-        BoosterGenerated booster ->
-            ( {model | generatedBooster = Just booster}, Cmd.none )
+        MaybeBoosterGenerated mb ->
+            let
+                booster = (Just Booster)
+                    |> Maybe.Extra.andMap mb.commonSteel
+                    |> Maybe.Extra.andMap mb.commonRuby
+                    |> Maybe.Extra.andMap mb.commonAmber
+                    |> Maybe.Extra.andMap mb.commonSapphire
+                    |> Maybe.Extra.andMap mb.commonEmerald
+                    |> Maybe.Extra.andMap mb.commonAmethyst
+                    |> Maybe.Extra.andMap mb.uncommon1
+                    |> Maybe.Extra.andMap mb.uncommon2
+                    |> Maybe.Extra.andMap mb.uncommon3
+                    |> Maybe.Extra.andMap mb.rare1
+                    |> Maybe.Extra.andMap mb.rare2
+                    |> Maybe.Extra.andMap mb.foil
+            in
+            ( {model | generatedBooster = booster}, Cmd.none )
 
 
 
