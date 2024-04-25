@@ -476,7 +476,19 @@ generateCommon possibleCommons =
     case possibleCommons of
             Nothing -> Random.constant Nothing
             Just cards -> Random.Extra.sample cards
-       
+
+generateUncommons: Maybe (List Card) -> Random.Generator (Maybe (Card, Card, Card))
+generateUncommons possibleUncommons =
+    case possibleUncommons of
+        Nothing -> Random.constant Nothing    
+        Just cards -> cards  
+                        |> Random.List.choices 3  
+                        |> Random.map (\lists -> 
+                                case lists of
+                                    ([a, b, c], _) -> Just (a, b, c)
+                                    (_, _) -> Nothing  
+                            )
+
 
 generateBooster : CardsSplitForPack -> Random.Generator MaybeBooster
 generateBooster cardsSplitForPack =
@@ -488,6 +500,7 @@ generateBooster cardsSplitForPack =
             |> AllDict.fromList
         
     in
+    -- Commons are one per color always
     Random.map MaybeBooster (generateCommon (AllDict.get Steel commonsGroupedByColor))
     |> Random.Extra.andMap (generateCommon (AllDict.get Ruby commonsGroupedByColor))
     |> Random.Extra.andMap (generateCommon (AllDict.get Amber commonsGroupedByColor))
@@ -495,6 +508,7 @@ generateBooster cardsSplitForPack =
     |> Random.Extra.andMap (generateCommon (AllDict.get Emerald commonsGroupedByColor))
     |> Random.Extra.andMap (generateCommon (AllDict.get Amethyst commonsGroupedByColor))
 
+    -- TODO: generate correct rarities
     |> Random.Extra.andMap (generateCommon (AllDict.get Amethyst commonsGroupedByColor))
     |> Random.Extra.andMap (generateCommon (AllDict.get Amethyst commonsGroupedByColor))
     |> Random.Extra.andMap (generateCommon (AllDict.get Amethyst commonsGroupedByColor))
@@ -522,6 +536,7 @@ update msg model =
         NoOp ->
             ( model, Cmd.none )
 
+        -- TODO: generate multiple packs
         GeneratePacks ->
             ( model, model.cardsSplitForPack
                         |> Maybe.map generateBooster
@@ -540,7 +555,7 @@ update msg model =
                     |> Maybe.Extra.andMap mb.uncommon1
                     |> Maybe.Extra.andMap mb.uncommon2
                     |> Maybe.Extra.andMap mb.uncommon3
-                    |> Maybe.Extra.andMap mb.rare1
+                    |> Maybe.Extra.andMap mb.rare1 
                     |> Maybe.Extra.andMap mb.rare2
                     |> Maybe.Extra.andMap mb.foil
             in
@@ -550,6 +565,7 @@ update msg model =
 
 generatePacksSelection : Model -> Html Msg
 generatePacksSelection model =
+    -- TODO: Enable pack number and set selection
     button [ onClick GeneratePacks ] [ text "Generate some packs" ]
 
 
