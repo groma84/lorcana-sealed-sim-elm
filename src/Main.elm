@@ -489,6 +489,34 @@ generateUncommons possibleUncommons =
                                     (_, _) -> Nothing  
                             )
 
+generateGenerators : CardsSplitForPack -> Maybe (Random.Generator Booster)
+generateGenerators cardsSplitForPack =
+    let
+        commonsGroupedByColor =
+            cardsSplitForPack.commons
+            |> List.Extra.gatherWith (\l r -> (colorFromCard l) == (colorFromCard r)) 
+            |> List.map (Tuple.mapFirst colorFromCard)
+            |> AllDict.fromList
+
+        everyColorHasAtLeastOneColor =
+            (Maybe.Extra.isJust (AllDict.get Steel commonsGroupedByColor))
+            && (Maybe.Extra.isJust (AllDict.get Ruby commonsGroupedByColor))
+            && (Maybe.Extra.isJust (AllDict.get Amber commonsGroupedByColor))
+            && (Maybe.Extra.isJust (AllDict.get Sapphire commonsGroupedByColor))
+            && (Maybe.Extra.isJust (AllDict.get Emerald commonsGroupedByColor))
+            && (Maybe.Extra.isJust (AllDict.get Amethyst commonsGroupedByColor))
+
+        enoughUncommonsExist = List.length cardsSplitForPack.uncommons >= 3
+        enoughRaresExist = List.length cardsSplitForPack.rares >= 2
+
+    in
+        if everyColorHasAtLeastOneColor && enoughUncommonsExist && enoughRaresExist then
+            -- TODO: build one big generator with all the values that are guaranteed to exist
+            --      AND create a new record to store the values/tuples to later map to Booster
+            Just ()
+        else
+            Nothing
+
 
 generateBooster : CardsSplitForPack -> Random.Generator MaybeBooster
 generateBooster cardsSplitForPack =
