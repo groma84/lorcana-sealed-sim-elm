@@ -148,9 +148,7 @@ type alias MaybeBooster =
     , commonSapphire : Maybe Card
     , commonEmerald : Maybe Card
     , commonAmethyst : Maybe Card
-    , uncommon1 : Maybe Card
-    , uncommon2 : Maybe Card
-    , uncommon3 : Maybe Card
+    , uncommons : List (Maybe Card)
     , rare1: Maybe Card
     , rare2: Maybe Card
     , foil: Maybe Card
@@ -498,7 +496,7 @@ generateGenerators cardsSplitForPack =
             |> List.map (Tuple.mapFirst colorFromCard)
             |> AllDict.fromList
 
-        everyColorHasAtLeastOneColor =
+        everyColorHasAtLeastOneCard =
             (Maybe.Extra.isJust (AllDict.get Steel commonsGroupedByColor))
             && (Maybe.Extra.isJust (AllDict.get Ruby commonsGroupedByColor))
             && (Maybe.Extra.isJust (AllDict.get Amber commonsGroupedByColor))
@@ -510,16 +508,32 @@ generateGenerators cardsSplitForPack =
         enoughRaresExist = List.length cardsSplitForPack.rares >= 2
 
     in
-        if everyColorHasAtLeastOneColor && enoughUncommonsExist && enoughRaresExist then
+        if everyColorHasAtLeastOneCard && enoughUncommonsExist && enoughRaresExist then
             -- TODO: build one big generator with all the values that are guaranteed to exist
             --      AND create a new record to store the values/tuples to later map to Booster
             Just ()
         else
             Nothing
 
-
-generateBooster : CardsSplitForPack -> Random.Generator MaybeBooster
+generateBooster : CardsSplitForPack -> Random.Generator (Maybe Booster)
 generateBooster cardsSplitForPack =
+    cardsSplitForPack
+    |> generateMaybeBooster 
+    |> Random.map (\mb -> 
+        let
+            asList = [mb.commonSteel, mb.commonRuby, mb.commonAmber, mb.commonSapphire, mb.commonEmerald, mb.commonAmethyst] ++ mb.uncommons
+            traversed = Maybe.Extra.combine asList
+        in
+            case traversed of
+                Just [commonSteel, commonRuby, commonAmber, commonSapphire, commonEmerald, commonAmethyst, uc1, uc2, uc3] ->
+                   Just (Booster commonSteel commonRuby commonAmber commonSapphire commonEmerald commonAmethyst uc1 uc2 uc3 commonSteel commonSteel commonSteel)
+                _ -> Nothing
+
+    )
+
+
+generateMaybeBooster : CardsSplitForPack -> Random.Generator MaybeBooster
+generateMaybeBooster cardsSplitForPack =
     let
         commonsGroupedByColor =
             cardsSplitForPack.commons
@@ -536,10 +550,8 @@ generateBooster cardsSplitForPack =
     |> Random.Extra.andMap (generateCommon (AllDict.get Emerald commonsGroupedByColor))
     |> Random.Extra.andMap (generateCommon (AllDict.get Amethyst commonsGroupedByColor))
 
+    |> Random.Extra.andMap (generateUncommons (AllDict.get Amethyst commonsGroupedByColor))
     -- TODO: generate correct rarities
-    |> Random.Extra.andMap (generateCommon (AllDict.get Amethyst commonsGroupedByColor))
-    |> Random.Extra.andMap (generateCommon (AllDict.get Amethyst commonsGroupedByColor))
-    |> Random.Extra.andMap (generateCommon (AllDict.get Amethyst commonsGroupedByColor))
     |> Random.Extra.andMap (generateCommon (AllDict.get Amethyst commonsGroupedByColor))
     |> Random.Extra.andMap (generateCommon (AllDict.get Amethyst commonsGroupedByColor))
     |> Random.Extra.andMap (generateCommon (AllDict.get Amethyst commonsGroupedByColor))
