@@ -148,7 +148,7 @@ type alias MaybeBooster =
     , commonSapphire : Maybe Card
     , commonEmerald : Maybe Card
     , commonAmethyst : Maybe Card
-    , uncommons : List (Maybe Card)
+    , uncommons : Maybe (Card, Card, Card)
     , rare1: Maybe Card
     , rare2: Maybe Card
     , foil: Maybe Card
@@ -475,16 +475,16 @@ generateCommon possibleCommons =
             Nothing -> Random.constant Nothing
             Just cards -> Random.Extra.sample cards
 
-generateUncommons: Maybe (List Card) -> Random.Generator (Maybe (Card, Card, Card))
+generateUncommons: List Card -> Random.Generator (Maybe (Card, Card, Card))
 generateUncommons possibleUncommons =
     case possibleUncommons of
-        Nothing -> Random.constant Nothing    
-        Just cards -> cards  
+        [] -> Random.constant Nothing    
+        cards -> cards  
                         |> Random.List.choices 3  
                         |> Random.map (\lists -> 
                                 case lists of
                                     ([a, b, c], _) -> Just (a, b, c)
-                                    (_, _) -> Nothing  
+                                    _ -> Nothing  
                             )
 
 generateGenerators : CardsSplitForPack -> Maybe (Random.Generator Booster)
@@ -509,7 +509,7 @@ generateGenerators cardsSplitForPack =
 
     in
         if everyColorHasAtLeastOneCard && enoughUncommonsExist && enoughRaresExist then
-            -- TODO: build one big generator with all the values that are guaranteed to exist
+            -- TODO 2024-10-17: build one big generator with all the values that are guaranteed to exist
             --      AND create a new record to store the values/tuples to later map to Booster
             Just ()
         else
@@ -521,7 +521,10 @@ generateBooster cardsSplitForPack =
     |> generateMaybeBooster 
     |> Random.map (\mb -> 
         let
-            asList = [mb.commonSteel, mb.commonRuby, mb.commonAmber, mb.commonSapphire, mb.commonEmerald, mb.commonAmethyst] ++ mb.uncommons
+            uncommonsAsList = case mb.uncommons of
+                Nothing -> [Nothing]
+                Just (c1, c2, c3) -> [Just c1, Just c2, Just c3]
+            asList = [mb.commonSteel, mb.commonRuby, mb.commonAmber, mb.commonSapphire, mb.commonEmerald, mb.commonAmethyst] ++ uncommonsAsList
             traversed = Maybe.Extra.combine asList
         in
             case traversed of
@@ -550,8 +553,8 @@ generateMaybeBooster cardsSplitForPack =
     |> Random.Extra.andMap (generateCommon (AllDict.get Emerald commonsGroupedByColor))
     |> Random.Extra.andMap (generateCommon (AllDict.get Amethyst commonsGroupedByColor))
 
-    |> Random.Extra.andMap (generateUncommons (AllDict.get Amethyst commonsGroupedByColor))
-    -- TODO: generate correct rarities
+    |> Random.Extra.andMap (generateUncommons cardsSplitForPack.uncommons)
+    -- TODO 2024-10-17: generate rares and foil slot
     |> Random.Extra.andMap (generateCommon (AllDict.get Amethyst commonsGroupedByColor))
     |> Random.Extra.andMap (generateCommon (AllDict.get Amethyst commonsGroupedByColor))
     |> Random.Extra.andMap (generateCommon (AllDict.get Amethyst commonsGroupedByColor))
