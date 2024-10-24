@@ -149,8 +149,7 @@ type alias MaybeBooster =
     , commonEmerald : Maybe Card
     , commonAmethyst : Maybe Card
     , uncommons : Maybe (Card, Card, Card)
-    , rare1: Maybe Card
-    , rare2: Maybe Card
+    , rares: Maybe (Card, Card)
     , foil: Maybe Card
     }    
 
@@ -469,9 +468,9 @@ prepareCardLists allCards =
     }
 
 
-generateCommon : Maybe (List Card) -> Random.Generator (Maybe Card)
-generateCommon possibleCommons =
-    case possibleCommons of
+generateOneCard : Maybe (List Card) -> Random.Generator (Maybe Card)
+generateOneCard possibleCards =
+    case possibleCards of
             Nothing -> Random.constant Nothing
             Just cards -> Random.Extra.sample cards
 
@@ -484,6 +483,18 @@ generateUncommons possibleUncommons =
                         |> Random.map (\lists -> 
                                 case lists of
                                     ([a, b, c], _) -> Just (a, b, c)
+                                    _ -> Nothing  
+                            )
+
+generateRares: List Card -> Random.Generator (Maybe (Card, Card))
+generateRares possibleRares =
+    case possibleRares of
+        [] -> Random.constant Nothing    
+        cards -> cards  
+                        |> Random.List.choices 2  
+                        |> Random.map (\lists -> 
+                                case lists of
+                                    ([a, b], _) -> Just (a, b)
                                     _ -> Nothing  
                             )
 
@@ -505,7 +516,7 @@ generateGenerators cardsSplitForPack =
             && (Maybe.Extra.isJust (AllDict.get Amethyst commonsGroupedByColor))
 
         enoughUncommonsExist = List.length cardsSplitForPack.uncommons >= 3
-        enoughRaresExist = List.length cardsSplitForPack.rares >= 2
+        enoughRaresExist = (List.length cardsSplitForPack.rares + List.length cardsSplitForPack.superRares + List.length cardsSplitForPack.legendaries) >= 2
 
     in
         if everyColorHasAtLeastOneCard && enoughUncommonsExist && enoughRaresExist then
@@ -546,25 +557,17 @@ generateMaybeBooster cardsSplitForPack =
         
     in
     -- Commons are one per color always
-    Random.map MaybeBooster (generateCommon (AllDict.get Steel commonsGroupedByColor))
-    |> Random.Extra.andMap (generateCommon (AllDict.get Ruby commonsGroupedByColor))
-    |> Random.Extra.andMap (generateCommon (AllDict.get Amber commonsGroupedByColor))
-    |> Random.Extra.andMap (generateCommon (AllDict.get Sapphire commonsGroupedByColor))
-    |> Random.Extra.andMap (generateCommon (AllDict.get Emerald commonsGroupedByColor))
-    |> Random.Extra.andMap (generateCommon (AllDict.get Amethyst commonsGroupedByColor))
+    Random.map MaybeBooster (generateOneCard (AllDict.get Steel commonsGroupedByColor))
+    |> Random.Extra.andMap (generateOneCard (AllDict.get Ruby commonsGroupedByColor))
+    |> Random.Extra.andMap (generateOneCard (AllDict.get Amber commonsGroupedByColor))
+    |> Random.Extra.andMap (generateOneCard (AllDict.get Sapphire commonsGroupedByColor))
+    |> Random.Extra.andMap (generateOneCard (AllDict.get Emerald commonsGroupedByColor))
+    |> Random.Extra.andMap (generateOneCard (AllDict.get Amethyst commonsGroupedByColor))
 
     |> Random.Extra.andMap (generateUncommons cardsSplitForPack.uncommons)
-    -- TODO 2024-10-17: generate rares and foil slot
-    |> Random.Extra.andMap (generateCommon (AllDict.get Amethyst commonsGroupedByColor))
-    |> Random.Extra.andMap (generateCommon (AllDict.get Amethyst commonsGroupedByColor))
-    |> Random.Extra.andMap (generateCommon (AllDict.get Amethyst commonsGroupedByColor))
+    |> Random.Extra.andMap (generateRares (cardsSplitForPack.rares ++ cardsSplitForPack.superRares ++ cardsSplitForPack.legendaries))
+    |> Random.Extra.andMap (generateOneCard (Just cardsSplitForPack.allCards))
 
-    -- Random.List.shuffle cardsSplitForPack.commons |> gatherWith Color |> head of each group |> flatMap
-    -- Random.List.shuffle cardsSplitForPack.uncommons |> take 3
-    -- Random.List.shuffle cardsSplitForPack.rare |> take 2
-    -- Random.List.shuffle cardsSplitForPack.superRares |> take 2
-    -- Random.List.shuffle cardsSplitForPack.legendaries |> take 2
-    -- Random.List.shuffle cardsSplitForPack.allCards -- foil
 
 
 -- TODO: allCards -> prepareCardLists -> Shuffle Each List and "store" again + get three more random nums for the distributions
