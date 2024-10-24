@@ -498,34 +498,6 @@ generateRares possibleRares =
                                     _ -> Nothing  
                             )
 
-generateGenerators : CardsSplitForPack -> Maybe (Random.Generator Booster)
-generateGenerators cardsSplitForPack =
-    let
-        commonsGroupedByColor =
-            cardsSplitForPack.commons
-            |> List.Extra.gatherWith (\l r -> (colorFromCard l) == (colorFromCard r)) 
-            |> List.map (Tuple.mapFirst colorFromCard)
-            |> AllDict.fromList
-
-        everyColorHasAtLeastOneCard =
-            (Maybe.Extra.isJust (AllDict.get Steel commonsGroupedByColor))
-            && (Maybe.Extra.isJust (AllDict.get Ruby commonsGroupedByColor))
-            && (Maybe.Extra.isJust (AllDict.get Amber commonsGroupedByColor))
-            && (Maybe.Extra.isJust (AllDict.get Sapphire commonsGroupedByColor))
-            && (Maybe.Extra.isJust (AllDict.get Emerald commonsGroupedByColor))
-            && (Maybe.Extra.isJust (AllDict.get Amethyst commonsGroupedByColor))
-
-        enoughUncommonsExist = List.length cardsSplitForPack.uncommons >= 3
-        enoughRaresExist = (List.length cardsSplitForPack.rares + List.length cardsSplitForPack.superRares + List.length cardsSplitForPack.legendaries) >= 2
-
-    in
-        if everyColorHasAtLeastOneCard && enoughUncommonsExist && enoughRaresExist then
-            -- TODO 2024-10-17: build one big generator with all the values that are guaranteed to exist
-            --      AND create a new record to store the values/tuples to later map to Booster
-            Just ()
-        else
-            Nothing
-
 generateBooster : CardsSplitForPack -> Random.Generator (Maybe Booster)
 generateBooster cardsSplitForPack =
     cardsSplitForPack
@@ -535,16 +507,18 @@ generateBooster cardsSplitForPack =
             uncommonsAsList = case mb.uncommons of
                 Nothing -> [Nothing]
                 Just (c1, c2, c3) -> [Just c1, Just c2, Just c3]
-            asList = [mb.commonSteel, mb.commonRuby, mb.commonAmber, mb.commonSapphire, mb.commonEmerald, mb.commonAmethyst] ++ uncommonsAsList
+            raresAsList = case mb.rares of
+                Nothing -> [Nothing]
+                Just (c1, c2) -> [Just c1, Just c2]                
+            asList = [mb.commonSteel, mb.commonRuby, mb.commonAmber, mb.commonSapphire, mb.commonEmerald, mb.commonAmethyst] ++ uncommonsAsList ++ raresAsList ++ [mb.foil]
             traversed = Maybe.Extra.combine asList
         in
             case traversed of
-                Just [commonSteel, commonRuby, commonAmber, commonSapphire, commonEmerald, commonAmethyst, uc1, uc2, uc3] ->
-                   Just (Booster commonSteel commonRuby commonAmber commonSapphire commonEmerald commonAmethyst uc1 uc2 uc3 commonSteel commonSteel commonSteel)
+                Just [commonSteel, commonRuby, commonAmber, commonSapphire, commonEmerald, commonAmethyst, uc1, uc2, uc3, r1, r2, foil] ->
+                   Just (Booster commonSteel commonRuby commonAmber commonSapphire commonEmerald commonAmethyst uc1 uc2 uc3 r1 r2 foil)
                 _ -> Nothing
 
     )
-
 
 generateMaybeBooster : CardsSplitForPack -> Random.Generator MaybeBooster
 generateMaybeBooster cardsSplitForPack =
