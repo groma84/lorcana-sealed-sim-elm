@@ -18,7 +18,6 @@ import Platform.Cmd as Cmd
 
 type alias Model =
     { allCards : List Card
-    , cardsSplitForPack : Maybe CardsSplitForPack
     , error : Maybe String
     , generatedBooster : Maybe Booster
     , packsToGenerate : Dict.Dict Int Int
@@ -26,7 +25,6 @@ type alias Model =
 
 initialModel =
     { allCards = []
-    , cardsSplitForPack = Nothing
     , error = Nothing
     , generatedBooster = Nothing
     , packsToGenerate = Dict.empty
@@ -392,7 +390,6 @@ init flags =
             case parsedCards of
                 Err e ->
                     { error = Just (D.errorToString e)
-                    , cardsSplitForPack = Nothing 
                     , allCards = []
                     , generatedBooster = Nothing
                     , packsToGenerate = Dict.empty
@@ -400,7 +397,6 @@ init flags =
 
                 Ok cards ->
                     { error = Nothing
-                    , cardsSplitForPack = Just (prepareCardLists cards)
                     , allCards = cards
                     , generatedBooster = Nothing
                     , packsToGenerate = Dict.empty
@@ -457,14 +453,32 @@ rarityFromCard card =
                 Failed ->
                     Common
 
-prepareCardLists : List Card -> CardsSplitForPack
-prepareCardLists allCards =
-    { allCards = allCards
-    , commons = List.filter (\c -> rarityFromCard c == Common) allCards
-    , uncommons = List.filter (\c -> rarityFromCard c == Uncommon) allCards
-    , rares = List.filter (\c -> rarityFromCard c == Rare) allCards
-    , superRares = List.filter (\c -> rarityFromCard c == SuperRare) allCards
-    , legendaries = List.filter (\c -> rarityFromCard c == Legendary) allCards
+setNumberFromCard : Card -> Int
+setNumberFromCard card =
+            case card of
+                Character x ->
+                    x.setNum
+
+                Song x ->
+                    x.setNum
+
+                Action x ->
+                    x.setNum
+
+                Item x ->
+                    x.setNum
+
+                Failed ->
+                    -1
+
+prepareCardLists : List Card -> Int -> CardsSplitForPack
+prepareCardLists allCards setNumber =
+    { allCards = List.filter (\c -> setNumberFromCard c == setNumber ) allCards
+    , commons = List.filter (\c -> rarityFromCard c == Common && setNumberFromCard c == setNumber) allCards
+    , uncommons = List.filter (\c -> rarityFromCard c == Uncommon && setNumberFromCard c == setNumber) allCards
+    , rares = List.filter (\c -> rarityFromCard c == Rare && setNumberFromCard c == setNumber) allCards
+    , superRares = List.filter (\c -> rarityFromCard c == SuperRare && setNumberFromCard c == setNumber) allCards
+    , legendaries = List.filter (\c -> rarityFromCard c == Legendary && setNumberFromCard c == setNumber) allCards
     }
 
 
@@ -551,10 +565,9 @@ update msg model =
 
         -- TODO: generate multiple packs
         GeneratePacks ->
-            ( model, model.cardsSplitForPack
-                        |> Maybe.map generateBooster
-                        |> Maybe.map (Random.generate BoosterGenerated)
-                        |> Maybe.withDefault Cmd.none)
+            ( model, prepareCardLists model.allCards 1
+                        |> generateBooster
+                        |> Random.generate BoosterGenerated)
 
         BoosterGenerated booster ->
             ( {model | generatedBooster = booster}, Cmd.none )
