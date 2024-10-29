@@ -1,9 +1,9 @@
 module Main exposing (main)
 
 import Browser
-import Html exposing (Html, button, div, img, text)
-import Html.Attributes exposing (src, style)
-import Html.Events exposing (onClick)
+import Html exposing (Html, button, div, img, text, li, input)
+import Html.Attributes exposing (src, style, type_, min, max)
+import Html.Events exposing (onClick, onInput)
 import Json.Decode as D
 import VitePluginHelper
 import Random.List
@@ -20,17 +20,16 @@ type alias Model =
     { allCards : List Card
     , cardsSplitForPack : Maybe CardsSplitForPack
     , error : Maybe String
-    , maybeGeneratedBooster : Maybe MaybeBooster
     , generatedBooster : Maybe Booster
+    , packsToGenerate : Dict.Dict Int Int
     }
-
 
 initialModel =
     { allCards = []
     , cardsSplitForPack = Nothing
     , error = Nothing
-    , maybeGeneratedBooster = Nothing
     , generatedBooster = Nothing
+    , packsToGenerate = Dict.empty
     }
 
 
@@ -157,6 +156,7 @@ type Msg
     = NoOp
     | GeneratePacks
     | BoosterGenerated (Maybe Booster)
+    | PackSelectionChanged Int String
 
 
 type Rarity
@@ -394,16 +394,16 @@ init flags =
                     { error = Just (D.errorToString e)
                     , cardsSplitForPack = Nothing 
                     , allCards = []
-                    , maybeGeneratedBooster = Nothing
                     , generatedBooster = Nothing
+                    , packsToGenerate = Dict.empty
                     }
 
                 Ok cards ->
                     { error = Nothing
                     , cardsSplitForPack = Just (prepareCardLists cards)
                     , allCards = cards
-                    , maybeGeneratedBooster = Nothing
                     , generatedBooster = Nothing
+                    , packsToGenerate = Dict.empty
                     }
     in
     ( newModel
@@ -543,15 +543,6 @@ generateBooster cardsSplitForPack =
         )
 
 
-
-
-
--- TODO: allCards -> prepareCardLists -> Shuffle Each List and "store" again + get three more random nums for the distributions
--- -> use generated values into real generator function -> filter for pack set -> generate pack -> loop for packs -> store everything
--- -> display everything
--- 6 commons (**one of each color!**), 3 uncommons, 1 mit rare oder superrare oder legendary, 1 mit rare oder superrare oder legendary, 1 mit foil mit beliebiger rarity
-
-
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -567,24 +558,38 @@ update msg model =
 
         BoosterGenerated booster ->
             ( {model | generatedBooster = booster}, Cmd.none )
+        
+        PackSelectionChanged setNo val ->
+            -- TODO
+            ( model, Cmd.none )
 
 
 
-generatePacksSelection : Model -> Html Msg
+
+generatePacksSelection : Model -> List (Html Msg)
 generatePacksSelection model =
-    -- TODO: Enable pack number and set selection
-    button [ onClick GeneratePacks ] [ text "Generate some packs" ]
+    -- TODO: Enable pack amount and set selection
+    let
+        oneSet setNo setName = li [] [
+            input [type_ "number", Html.Attributes.min "0", Html.Attributes.max "6", onInput (PackSelectionChanged setNo)] []
+            , text setName
+            ]
+    in
+    [
+        oneSet 1 "The First Chapter"
+        , button [ onClick GeneratePacks ] [ text "Generate some packs" ]
+    ]
 
 
 view : Model -> Html Msg
 view model =
     div []
-        [ case model.error of
+        (case model.error of
             Nothing ->
                 generatePacksSelection model
 
             Just e ->
-                div [] [ text e ]
+                [div [] [ text e ]]
 
                 -- TODO: implement generated pack view
-        ]
+        )
