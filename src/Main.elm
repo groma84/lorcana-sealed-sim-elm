@@ -156,7 +156,7 @@ type alias MaybeBooster =
 type Msg
     = NoOp
     | GeneratePacks
-    | MaybeBoosterGenerated MaybeBooster
+    | BoosterGenerated (Maybe Booster)
 
 
 type Rarity
@@ -500,47 +500,49 @@ generateRares possibleRares =
 
 generateBooster : CardsSplitForPack -> Random.Generator (Maybe Booster)
 generateBooster cardsSplitForPack =
-    cardsSplitForPack
-    |> generateMaybeBooster 
-    |> Random.map (\mb -> 
-        let
-            uncommonsAsList = case mb.uncommons of
-                Nothing -> [Nothing]
-                Just (c1, c2, c3) -> [Just c1, Just c2, Just c3]
-            raresAsList = case mb.rares of
-                Nothing -> [Nothing]
-                Just (c1, c2) -> [Just c1, Just c2]                
-            asList = [mb.commonSteel, mb.commonRuby, mb.commonAmber, mb.commonSapphire, mb.commonEmerald, mb.commonAmethyst] ++ uncommonsAsList ++ raresAsList ++ [mb.foil]
-            traversed = Maybe.Extra.combine asList
-        in
-            case traversed of
-                Just [commonSteel, commonRuby, commonAmber, commonSapphire, commonEmerald, commonAmethyst, uc1, uc2, uc3, r1, r2, foil] ->
-                   Just (Booster commonSteel commonRuby commonAmber commonSapphire commonEmerald commonAmethyst uc1 uc2 uc3 r1 r2 foil)
-                _ -> Nothing
-
-    )
-
-generateMaybeBooster : CardsSplitForPack -> Random.Generator MaybeBooster
-generateMaybeBooster cardsSplitForPack =
     let
-        commonsGroupedByColor =
-            cardsSplitForPack.commons
-            |> List.Extra.gatherWith (\l r -> (colorFromCard l) == (colorFromCard r)) 
-            |> List.map (Tuple.mapFirst colorFromCard)
-            |> AllDict.fromList
-        
-    in
-    -- Commons are one per color always
-    Random.map MaybeBooster (generateOneCard (AllDict.get Steel commonsGroupedByColor))
-    |> Random.Extra.andMap (generateOneCard (AllDict.get Ruby commonsGroupedByColor))
-    |> Random.Extra.andMap (generateOneCard (AllDict.get Amber commonsGroupedByColor))
-    |> Random.Extra.andMap (generateOneCard (AllDict.get Sapphire commonsGroupedByColor))
-    |> Random.Extra.andMap (generateOneCard (AllDict.get Emerald commonsGroupedByColor))
-    |> Random.Extra.andMap (generateOneCard (AllDict.get Amethyst commonsGroupedByColor))
+        generateMaybeBooster : Random.Generator MaybeBooster
+        generateMaybeBooster =
+            let
+                commonsGroupedByColor =
+                    cardsSplitForPack.commons
+                    |> List.Extra.gatherWith (\l r -> (colorFromCard l) == (colorFromCard r)) 
+                    |> List.map (Tuple.mapFirst colorFromCard)
+                    |> AllDict.fromList
+                
+            in
+            -- Commons are one per color always
+            Random.map MaybeBooster (generateOneCard (AllDict.get Steel commonsGroupedByColor))
+            |> Random.Extra.andMap (generateOneCard (AllDict.get Ruby commonsGroupedByColor))
+            |> Random.Extra.andMap (generateOneCard (AllDict.get Amber commonsGroupedByColor))
+            |> Random.Extra.andMap (generateOneCard (AllDict.get Sapphire commonsGroupedByColor))
+            |> Random.Extra.andMap (generateOneCard (AllDict.get Emerald commonsGroupedByColor))
+            |> Random.Extra.andMap (generateOneCard (AllDict.get Amethyst commonsGroupedByColor))
 
-    |> Random.Extra.andMap (generateUncommons cardsSplitForPack.uncommons)
-    |> Random.Extra.andMap (generateRares (cardsSplitForPack.rares ++ cardsSplitForPack.superRares ++ cardsSplitForPack.legendaries))
-    |> Random.Extra.andMap (generateOneCard (Just cardsSplitForPack.allCards))
+            |> Random.Extra.andMap (generateUncommons cardsSplitForPack.uncommons)
+            |> Random.Extra.andMap (generateRares (cardsSplitForPack.rares ++ cardsSplitForPack.superRares ++ cardsSplitForPack.legendaries))
+            |> Random.Extra.andMap (generateOneCard (Just cardsSplitForPack.allCards))
+    in
+        generateMaybeBooster
+        |> Random.map (\mb -> 
+            let
+
+                uncommonsAsList = case mb.uncommons of
+                    Nothing -> [Nothing]
+                    Just (c1, c2, c3) -> [Just c1, Just c2, Just c3]
+                raresAsList = case mb.rares of
+                    Nothing -> [Nothing]
+                    Just (c1, c2) -> [Just c1, Just c2]                
+                asList = [mb.commonSteel, mb.commonRuby, mb.commonAmber, mb.commonSapphire, mb.commonEmerald, mb.commonAmethyst] ++ uncommonsAsList ++ raresAsList ++ [mb.foil]
+                traversed = Maybe.Extra.combine asList
+            in
+                case traversed of
+                    Just [commonSteel, commonRuby, commonAmber, commonSapphire, commonEmerald, commonAmethyst, uc1, uc2, uc3, r1, r2, foil] ->
+                        Just (Booster commonSteel commonRuby commonAmber commonSapphire commonEmerald commonAmethyst uc1 uc2 uc3 r1 r2 foil)
+                    _ -> Nothing
+        )
+
+
 
 
 
@@ -560,25 +562,10 @@ update msg model =
         GeneratePacks ->
             ( model, model.cardsSplitForPack
                         |> Maybe.map generateBooster
-                        |> Maybe.map (Random.generate MaybeBoosterGenerated)
+                        |> Maybe.map (Random.generate BoosterGenerated)
                         |> Maybe.withDefault Cmd.none)
 
-        MaybeBoosterGenerated mb ->
-            let
-                booster = (Just Booster)
-                    |> Maybe.Extra.andMap mb.commonSteel
-                    |> Maybe.Extra.andMap mb.commonRuby
-                    |> Maybe.Extra.andMap mb.commonAmber
-                    |> Maybe.Extra.andMap mb.commonSapphire
-                    |> Maybe.Extra.andMap mb.commonEmerald
-                    |> Maybe.Extra.andMap mb.commonAmethyst
-                    |> Maybe.Extra.andMap mb.uncommon1
-                    |> Maybe.Extra.andMap mb.uncommon2
-                    |> Maybe.Extra.andMap mb.uncommon3
-                    |> Maybe.Extra.andMap mb.rare1 
-                    |> Maybe.Extra.andMap mb.rare2
-                    |> Maybe.Extra.andMap mb.foil
-            in
+        BoosterGenerated booster ->
             ( {model | generatedBooster = booster}, Cmd.none )
 
 
@@ -598,4 +585,6 @@ view model =
 
             Just e ->
                 div [] [ text e ]
+
+                -- TODO: implement generated pack view
         ]
