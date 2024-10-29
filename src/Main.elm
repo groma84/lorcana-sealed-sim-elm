@@ -563,7 +563,10 @@ update msg model =
         NoOp ->
             ( model, Cmd.none )
 
-        -- TODO: generate multiple packs
+        -- TODO 2024-10-29: generate multiple packs
+        -- Notes: Dict.toList on the setSelection Dict; 
+        -- and then use Random.Extra.traverse : (a -> Generator b) -> List a -> Generator (List b) to 
+        -- go generate a booster generator for each Dict KV-pair and then transform it into a Generator of a list of Boosters
         GeneratePacks ->
             ( model, prepareCardLists model.allCards 1
                         |> generateBooster
