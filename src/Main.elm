@@ -19,14 +19,14 @@ import Platform.Cmd as Cmd
 type alias Model =
     { allCards : List Card
     , error : Maybe String
-    , generatedBooster : Maybe Booster
+    , generatedBooster : (List (Maybe Booster))
     , packsToGenerate : Dict.Dict Int Int
     }
 
 initialModel =
     { allCards = []
     , error = Nothing
-    , generatedBooster = Nothing
+    , generatedBooster = []
     , packsToGenerate = Dict.empty
     }
 
@@ -153,7 +153,7 @@ type alias MaybeBooster =
 type Msg
     = NoOp
     | GeneratePacks
-    | BoosterGenerated (Maybe Booster)
+    | BoosterGenerated (List (Maybe Booster))
     | PackSelectionChanged Int String
 
 
@@ -389,18 +389,10 @@ init flags =
         newModel =
             case parsedCards of
                 Err e ->
-                    { error = Just (D.errorToString e)
-                    , allCards = []
-                    , generatedBooster = Nothing
-                    , packsToGenerate = Dict.empty
-                    }
+                    { initialModel | error = Just (D.errorToString e)}
 
                 Ok cards ->
-                    { error = Nothing
-                    , allCards = cards
-                    , generatedBooster = Nothing
-                    , packsToGenerate = Dict.empty
-                    }
+                    { initialModel | allCards = cards}
     in
     ( newModel
     , Cmd.none
@@ -563,14 +555,14 @@ update msg model =
         NoOp ->
             ( model, Cmd.none )
 
-        -- TODO 2024-10-29: generate multiple packs
-        -- Notes: Dict.toList on the setSelection Dict; 
-        -- and then use Random.Extra.traverse : (a -> Generator b) -> List a -> Generator (List b) to 
-        -- go generate a booster generator for each Dict KV-pair and then transform it into a Generator of a list of Boosters
         GeneratePacks ->
-            ( model, prepareCardLists model.allCards 1
-                        |> generateBooster
-                        |> Random.generate BoosterGenerated)
+            let
+                boosterGenerators = 
+                    Dict.toList model.packsToGenerate
+                    |> List.concatMap (\(setNo, amount) -> List.repeat amount setNo)
+                    |> Random.Extra.traverse (\setNo -> prepareCardLists model.allCards setNo |> generateBooster)
+            in
+            ( model, Random.generate BoosterGenerated boosterGenerators)
 
         BoosterGenerated booster ->
             ( {model | generatedBooster = booster}, Cmd.none )
