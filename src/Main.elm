@@ -1,27 +1,29 @@
 module Main exposing (main)
 
+import AllDict
 import Browser
-import Html exposing (Html, button, div, img, text, li, input)
-import Html.Attributes exposing (src, style, type_, min, max)
+import Debug exposing (toString)
+import Dict
+import Html exposing (Html, button, div, img, input, li, text)
+import Html.Attributes exposing (max, min, src, style, type_)
 import Html.Events exposing (onClick, onInput)
 import Json.Decode as D
-import VitePluginHelper
-import Random.List
 import List.Extra
-import Dict
+import Maybe.Extra
+import Platform.Cmd as Cmd
 import Random
 import Random.Extra
-import Maybe.Extra
-import AllDict
-import Platform.Cmd as Cmd
+import Random.List
+import VitePluginHelper
 
 
 type alias Model =
     { allCards : List Card
     , error : Maybe String
-    , generatedBooster : (List (Maybe Booster))
+    , generatedBooster : List (Maybe Booster)
     , packsToGenerate : Dict.Dict Int Int
     }
+
 
 initialModel =
     { allCards = []
@@ -123,7 +125,8 @@ type Card
     | Item ItemCard
     | Failed
 
-type alias Booster = 
+
+type alias Booster =
     { commonSteel : Card
     , commonRuby : Card
     , commonAmber : Card
@@ -133,22 +136,24 @@ type alias Booster =
     , uncommon1 : Card
     , uncommon2 : Card
     , uncommon3 : Card
-    , rare1: Card
-    , rare2: Card
-    , foil: Card
+    , rare1 : Card
+    , rare2 : Card
+    , foil : Card
     }
 
-type alias MaybeBooster = 
+
+type alias MaybeBooster =
     { commonSteel : Maybe Card
     , commonRuby : Maybe Card
     , commonAmber : Maybe Card
     , commonSapphire : Maybe Card
     , commonEmerald : Maybe Card
     , commonAmethyst : Maybe Card
-    , uncommons : Maybe (Card, Card, Card)
-    , rares: Maybe (Card, Card)
-    , foil: Maybe Card
-    }    
+    , uncommons : Maybe ( Card, Card, Card )
+    , rares : Maybe ( Card, Card )
+    , foil : Maybe Card
+    }
+
 
 type Msg
     = NoOp
@@ -389,10 +394,10 @@ init flags =
         newModel =
             case parsedCards of
                 Err e ->
-                    { initialModel | error = Just (D.errorToString e)}
+                    { initialModel | error = Just (D.errorToString e) }
 
                 Ok cards ->
-                    { initialModel | allCards = cards}
+                    { initialModel | allCards = cards }
     in
     ( newModel
     , Cmd.none
@@ -427,45 +432,48 @@ colorFromCard card =
         Failed ->
             Steel
 
+
 rarityFromCard : Card -> Rarity
 rarityFromCard card =
-            case card of
-                Character x ->
-                    x.rarity
+    case card of
+        Character x ->
+            x.rarity
 
-                Song x ->
-                    x.rarity
+        Song x ->
+            x.rarity
 
-                Action x ->
-                    x.rarity
+        Action x ->
+            x.rarity
 
-                Item x ->
-                    x.rarity
+        Item x ->
+            x.rarity
 
-                Failed ->
-                    Common
+        Failed ->
+            Common
+
 
 setNumberFromCard : Card -> Int
 setNumberFromCard card =
-            case card of
-                Character x ->
-                    x.setNum
+    case card of
+        Character x ->
+            x.setNum
 
-                Song x ->
-                    x.setNum
+        Song x ->
+            x.setNum
 
-                Action x ->
-                    x.setNum
+        Action x ->
+            x.setNum
 
-                Item x ->
-                    x.setNum
+        Item x ->
+            x.setNum
 
-                Failed ->
-                    -1
+        Failed ->
+            -1
+
 
 prepareCardLists : List Card -> Int -> CardsSplitForPack
 prepareCardLists allCards setNumber =
-    { allCards = List.filter (\c -> setNumberFromCard c == setNumber ) allCards
+    { allCards = List.filter (\c -> setNumberFromCard c == setNumber) allCards
     , commons = List.filter (\c -> rarityFromCard c == Common && setNumberFromCard c == setNumber) allCards
     , uncommons = List.filter (\c -> rarityFromCard c == Uncommon && setNumberFromCard c == setNumber) allCards
     , rares = List.filter (\c -> rarityFromCard c == Rare && setNumberFromCard c == setNumber) allCards
@@ -477,32 +485,52 @@ prepareCardLists allCards setNumber =
 generateOneCard : Maybe (List Card) -> Random.Generator (Maybe Card)
 generateOneCard possibleCards =
     case possibleCards of
-            Nothing -> Random.constant Nothing
-            Just cards -> Random.Extra.sample cards
+        Nothing ->
+            Random.constant Nothing
 
-generateUncommons: List Card -> Random.Generator (Maybe (Card, Card, Card))
+        Just cards ->
+            Random.Extra.sample cards
+
+
+generateUncommons : List Card -> Random.Generator (Maybe ( Card, Card, Card ))
 generateUncommons possibleUncommons =
     case possibleUncommons of
-        [] -> Random.constant Nothing    
-        cards -> cards  
-                        |> Random.List.choices 3  
-                        |> Random.map (\lists -> 
-                                case lists of
-                                    ([a, b, c], _) -> Just (a, b, c)
-                                    _ -> Nothing  
-                            )
+        [] ->
+            Random.constant Nothing
 
-generateRares: List Card -> Random.Generator (Maybe (Card, Card))
+        cards ->
+            cards
+                |> Random.List.choices 3
+                |> Random.map
+                    (\lists ->
+                        case lists of
+                            ( [ a, b, c ], _ ) ->
+                                Just ( a, b, c )
+
+                            _ ->
+                                Nothing
+                    )
+
+
+generateRares : List Card -> Random.Generator (Maybe ( Card, Card ))
 generateRares possibleRares =
     case possibleRares of
-        [] -> Random.constant Nothing    
-        cards -> cards  
-                        |> Random.List.choices 2  
-                        |> Random.map (\lists -> 
-                                case lists of
-                                    ([a, b], _) -> Just (a, b)
-                                    _ -> Nothing  
-                            )
+        [] ->
+            Random.constant Nothing
+
+        cards ->
+            cards
+                |> Random.List.choices 2
+                |> Random.map
+                    (\lists ->
+                        case lists of
+                            ( [ a, b ], _ ) ->
+                                Just ( a, b )
+
+                            _ ->
+                                Nothing
+                    )
+
 
 generateBooster : CardsSplitForPack -> Random.Generator (Maybe Booster)
 generateBooster cardsSplitForPack =
@@ -512,41 +540,54 @@ generateBooster cardsSplitForPack =
             let
                 commonsGroupedByColor =
                     cardsSplitForPack.commons
-                    |> List.Extra.gatherWith (\l r -> (colorFromCard l) == (colorFromCard r)) 
-                    |> List.map (Tuple.mapFirst colorFromCard)
-                    |> AllDict.fromList
-                
+                        |> List.Extra.gatherWith (\l r -> colorFromCard l == colorFromCard r)
+                        |> List.map (Tuple.mapFirst colorFromCard)
+                        |> AllDict.fromList
             in
             -- Commons are one per color always
             Random.map MaybeBooster (generateOneCard (AllDict.get Steel commonsGroupedByColor))
-            |> Random.Extra.andMap (generateOneCard (AllDict.get Ruby commonsGroupedByColor))
-            |> Random.Extra.andMap (generateOneCard (AllDict.get Amber commonsGroupedByColor))
-            |> Random.Extra.andMap (generateOneCard (AllDict.get Sapphire commonsGroupedByColor))
-            |> Random.Extra.andMap (generateOneCard (AllDict.get Emerald commonsGroupedByColor))
-            |> Random.Extra.andMap (generateOneCard (AllDict.get Amethyst commonsGroupedByColor))
-
-            |> Random.Extra.andMap (generateUncommons cardsSplitForPack.uncommons)
-            |> Random.Extra.andMap (generateRares (cardsSplitForPack.rares ++ cardsSplitForPack.superRares ++ cardsSplitForPack.legendaries))
-            |> Random.Extra.andMap (generateOneCard (Just cardsSplitForPack.allCards))
+                |> Random.Extra.andMap (generateOneCard (AllDict.get Ruby commonsGroupedByColor))
+                |> Random.Extra.andMap (generateOneCard (AllDict.get Amber commonsGroupedByColor))
+                |> Random.Extra.andMap (generateOneCard (AllDict.get Sapphire commonsGroupedByColor))
+                |> Random.Extra.andMap (generateOneCard (AllDict.get Emerald commonsGroupedByColor))
+                |> Random.Extra.andMap (generateOneCard (AllDict.get Amethyst commonsGroupedByColor))
+                |> Random.Extra.andMap (generateUncommons cardsSplitForPack.uncommons)
+                |> Random.Extra.andMap (generateRares (cardsSplitForPack.rares ++ cardsSplitForPack.superRares ++ cardsSplitForPack.legendaries))
+                |> Random.Extra.andMap (generateOneCard (Just cardsSplitForPack.allCards))
     in
-        generateMaybeBooster
-        |> Random.map (\mb -> 
-            let
+    generateMaybeBooster
+        |> Random.map
+            (\mb ->
+                let
+                    uncommonsAsList =
+                        case mb.uncommons of
+                            Nothing ->
+                                [ Nothing ]
 
-                uncommonsAsList = case mb.uncommons of
-                    Nothing -> [Nothing]
-                    Just (c1, c2, c3) -> [Just c1, Just c2, Just c3]
-                raresAsList = case mb.rares of
-                    Nothing -> [Nothing]
-                    Just (c1, c2) -> [Just c1, Just c2]                
-                asList = [mb.commonSteel, mb.commonRuby, mb.commonAmber, mb.commonSapphire, mb.commonEmerald, mb.commonAmethyst] ++ uncommonsAsList ++ raresAsList ++ [mb.foil]
-                traversed = Maybe.Extra.combine asList
-            in
+                            Just ( c1, c2, c3 ) ->
+                                [ Just c1, Just c2, Just c3 ]
+
+                    raresAsList =
+                        case mb.rares of
+                            Nothing ->
+                                [ Nothing ]
+
+                            Just ( c1, c2 ) ->
+                                [ Just c1, Just c2 ]
+
+                    asList =
+                        [ mb.commonSteel, mb.commonRuby, mb.commonAmber, mb.commonSapphire, mb.commonEmerald, mb.commonAmethyst ] ++ uncommonsAsList ++ raresAsList ++ [ mb.foil ]
+
+                    traversed =
+                        Maybe.Extra.combine asList
+                in
                 case traversed of
-                    Just [commonSteel, commonRuby, commonAmber, commonSapphire, commonEmerald, commonAmethyst, uc1, uc2, uc3, r1, r2, foil] ->
+                    Just [ commonSteel, commonRuby, commonAmber, commonSapphire, commonEmerald, commonAmethyst, uc1, uc2, uc3, r1, r2, foil ] ->
                         Just (Booster commonSteel commonRuby commonAmber commonSapphire commonEmerald commonAmethyst uc1 uc2 uc3 r1 r2 foil)
-                    _ -> Nothing
-        )
+
+                    _ ->
+                        Nothing
+            )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -557,47 +598,63 @@ update msg model =
 
         GeneratePacks ->
             let
-                boosterGenerators = 
+                boosterGenerators =
                     Dict.toList model.packsToGenerate
-                    |> List.concatMap (\(setNo, amount) -> List.repeat amount setNo)
-                    |> Random.Extra.traverse (\setNo -> prepareCardLists model.allCards setNo |> generateBooster)
+                        |> List.concatMap (\( setNo, amount ) -> List.repeat amount setNo)
+                        |> Random.Extra.traverse (\setNo -> prepareCardLists model.allCards setNo |> generateBooster)
             in
-            ( model, Random.generate BoosterGenerated boosterGenerators)
+            ( model, Random.generate BoosterGenerated boosterGenerators )
 
         BoosterGenerated booster ->
-            ( {model | generatedBooster = booster}, Cmd.none )
-        
+            ( { model | generatedBooster = booster }, Cmd.none )
+
         PackSelectionChanged setNo val ->
-            -- TODO
-            ( model, Cmd.none )
+            let
+                newModel =
+                    case String.toInt val of
+                        Nothing ->
+                            { model | error = Just ("Invalid number input for Set " ++ String.fromInt setNo) }
 
-
+                        Just v ->
+                            { model
+                                | packsToGenerate = Dict.insert setNo v model.packsToGenerate
+                                , error = Nothing
+                            }
+            in
+            ( newModel, Cmd.none )
 
 
 generatePacksSelection : Model -> List (Html Msg)
 generatePacksSelection model =
     -- TODO: Enable pack amount and set selection
     let
-        oneSet setNo setName = li [] [
-            input [type_ "number", Html.Attributes.min "0", Html.Attributes.max "6", onInput (PackSelectionChanged setNo)] []
-            , text setName
-            ]
+        oneSet setNo setName =
+            li []
+                [ input [ type_ "number", Html.Attributes.min "0", Html.Attributes.max "6", onInput (PackSelectionChanged setNo) ] []
+                , text setName
+                ]
     in
-    [
-        oneSet 1 "The First Chapter"
-        , button [ onClick GeneratePacks ] [ text "Generate some packs" ]
+    [ oneSet 1 "The First Chapter"
+    , button [ onClick GeneratePacks ] [ text "Generate some packs" ]
     ]
 
 
 view : Model -> Html Msg
 view model =
+    let
+        -- TODO: 2024-11-07: improve error (for errors in multiple inputs, and/or other functions)
+        errorText =
+            case model.error of
+                Nothing ->
+                    [ text "" ]
+
+                Just e ->
+                    [ div [] [ text e ] ]
+    in
     div []
-        (case model.error of
-            Nothing ->
-                generatePacksSelection model
-
-            Just e ->
-                [div [] [ text e ]]
-
-                -- TODO: implement generated pack view
+        (List.concat
+            [ generatePacksSelection model
+            , errorText
+            ]
+         -- TODO: implement generated pack view
         )
