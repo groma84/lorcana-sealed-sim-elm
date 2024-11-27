@@ -4,6 +4,7 @@ import AllDict
 import Browser
 import Debug exposing (toString)
 import Dict
+import Set exposing (Set)
 import Html exposing (Html, button, div, img, input, li, text)
 import Html.Attributes exposing (max, min, src, style, type_)
 import Html.Events exposing (onClick, onInput)
@@ -16,10 +17,16 @@ import Random.Extra
 import Random.List
 import VitePluginHelper
 
+type Errors = 
+    PackSelectionInputError Int
+    | PackGenerationError 
+    | CardDataParsingError String
+    
 
 type alias Model =
     { allCards : List Card
-    , error : Maybe String
+    , errors : Dict.Dict Msg (Set String)
+    , packSelectionInputErrors : Set Errors
     , generatedBooster : List (Maybe Booster)
     , packsToGenerate : Dict.Dict Int Int
     }
@@ -27,7 +34,7 @@ type alias Model =
 
 initialModel =
     { allCards = []
-    , error = Nothing
+    , packSelectionInputErrors = Set.empty
     , generatedBooster = []
     , packsToGenerate = Dict.empty
     }
@@ -380,9 +387,16 @@ decodeCard cardType =
             D.fail ("cardType " ++ cardType ++ " failed to decode")
 
 
+addOrReplaceError errors newError =
+    errors
+
+removeError errors errorToRemove =
+    Set.remove errors errorToRemove
+
 main : Program D.Value Model Msg
 main =
     Browser.element { init = init, update = update, view = view, subscriptions = \_ -> Sub.none }
+
 
 
 init : D.Value -> ( Model, Cmd Msg )
@@ -610,15 +624,16 @@ update msg model =
 
         PackSelectionChanged setNo val ->
             let
+                possibleError = PackSelectionInputError setNo
                 newModel =
                     case String.toInt val of
                         Nothing ->
-                            { model | error = Just ("Invalid number input for Set " ++ String.fromInt setNo) }
+                            { model | packSelectionInputErrors = Set.insert possibleError model.packSelectionInputErrors  }
 
                         Just v ->
                             { model
                                 | packsToGenerate = Dict.insert setNo v model.packsToGenerate
-                                , error = Nothing
+                                , packSelectionInputErrors = Set.remove possibleError model.packSelectionInputErrors 
                             }
             in
             ( newModel, Cmd.none )
@@ -635,6 +650,7 @@ generatePacksSelection model =
                 ]
     in
     [ oneSet 1 "The First Chapter"
+    , oneSet 2 "Rise of the Floodborn"
     , button [ onClick GeneratePacks ] [ text "Generate some packs" ]
     ]
 
