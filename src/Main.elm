@@ -17,6 +17,7 @@ import Random.Extra
 import Random.List
 import VitePluginHelper
 
+
 type Errors = 
     PackSelectionInputError Int
     | PackGenerationError 
@@ -34,6 +35,7 @@ type alias Model =
 
 initialModel =
     { allCards = []
+    , errors = Dict.empty
     , packSelectionInputErrors = Set.empty
     , generatedBooster = []
     , packsToGenerate = Dict.empty
@@ -161,13 +163,16 @@ type alias MaybeBooster =
     , foil : Maybe Card
     }
 
+type alias SetNo = Int
+type alias HtmlInputValue = String
 
 type Msg
     = NoOp
     | GeneratePacks
     | BoosterGenerated (List (Maybe Booster))
-    | PackSelectionChanged Int String
+    | PackSelectionChanged SetNo HtmlInputValue
 
+type ErrorKey = MsgT Msg | Init
 
 type Rarity
     = Common
@@ -386,6 +391,17 @@ decodeCard cardType =
         _ ->
             D.fail ("cardType " ++ cardType ++ " failed to decode")
 
+errorKeyToString: ErrorKey -> String
+errorKeyToString ek =
+    case ek of
+        MsgT msg ->
+            case msg of
+                NoOp -> "NoOp"
+                GeneratePacks -> "GeneratePacks"
+                BoosterGenerated _ -> "BoosterGenerated"
+                PackSelectionChanged setNo _ -> "PackSelectionChanged" ++ String.fromInt setNo
+        Init -> "Init"
+
 
 addOrReplaceError errors newError =
     errors
@@ -408,6 +424,18 @@ init flags =
         newModel =
             case parsedCards of
                 Err e ->
+                    let
+                        newErrors = 
+                            initialModel.errors 
+                            |> Dict.get (errorKeyToString Init) 
+                            |> Maybe.map (Set.insert (D.errorToString e))
+                            |> Maybe.withDefault (Set.empty)
+
+                        -- TODO 2024-11-28: further implement error handling for multiple errors
+                        errors = Dict.insert newErrors initialModel.errors
+                    in
+                    
+                    Dict.insert Init 
                     { initialModel | error = Just (D.errorToString e) }
 
                 Ok cards ->
@@ -609,7 +637,8 @@ update msg model =
     case msg of
         NoOp ->
             ( model, Cmd.none )
-
+        Init ->
+            ( model, Cmd.none )
         GeneratePacks ->
             let
                 boosterGenerators =
