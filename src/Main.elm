@@ -26,11 +26,12 @@ type Errors =
 
 type alias Model =
     { allCards : List Card
-    , errors : Dict.Dict Msg (Set String)
+    , errors : Dict.Dict String String
     , packSelectionInputErrors : Set Errors
     , generatedBooster : List (Maybe Booster)
     , packsToGenerate : Dict.Dict Int Int
     }
+
 
 
 initialModel =
@@ -391,6 +392,9 @@ decodeCard cardType =
         _ ->
             D.fail ("cardType " ++ cardType ++ " failed to decode")
 
+-- We want to be able to store an error message per each unique thing that can go wrong
+-- this is most useful for the PackSelectionChanged errors, as different Sets with their inputs
+-- can have different errors at the same time
 errorKeyToString: ErrorKey -> String
 errorKeyToString ek =
     case ek of
@@ -425,18 +429,13 @@ init flags =
             case parsedCards of
                 Err e ->
                     let
-                        newErrors = 
-                            initialModel.errors 
-                            |> Dict.get (errorKeyToString Init) 
-                            |> Maybe.map (Set.insert (D.errorToString e))
-                            |> Maybe.withDefault (Set.empty)
+                        decodeErrorAsString = D.errorToString e
 
-                        -- TODO 2024-11-28: further implement error handling for multiple errors
-                        errors = Dict.insert newErrors initialModel.errors
+                        newErrors = Dict.insert (errorKeyToString Init) decodeErrorAsString initialModel.errors
+
                     in
                     
-                    Dict.insert Init 
-                    { initialModel | error = Just (D.errorToString e) }
+                    { initialModel | errors = newErrors }
 
                 Ok cards ->
                     { initialModel | allCards = cards }
